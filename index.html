@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スプレッドシート</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="spreadsheet-container">
+        <div class="toolbar">
+            <button id="saveBtn">保存</button>
+            <button id="loadBtn">読み込み</button>
+            <button id="clearBtn">クリア</button>
+            <input type="file" id="fileInput" accept=".json" style="display: none;">
+            <span class="formula-bar">
+                <label>fx:</label>
+                <input type="text" id="formulaInput" placeholder="セルを選択してください">
+            </span>
+        </div>
+        <div class="spreadsheet-wrapper">
+            <table id="spreadsheet">
+                <thead>
+                    <tr id="headerRow"></tr>
+                </thead>
+                <tbody id="spreadsheetBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

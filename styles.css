@@ -1,0 +1,145 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+}
+
+.spreadsheet-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+}
+
+.toolbar {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toolbar button {
+    padding: 6px 12px;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.toolbar button:hover {
+    background-color: #0052a3;
+}
+
+.formula-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 20px;
+}
+
+.formula-bar label {
+    font-weight: bold;
+    color: #666;
+}
+
+.formula-bar input {
+    flex: 1;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.spreadsheet-wrapper {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+#spreadsheet {
+    border-collapse: collapse;
+    width: max-content;
+    min-width: 100%;
+}
+
+#spreadsheet th,
+#spreadsheet td {
+    border: 1px solid #d0d0d0;
+    min-width: 80px;
+    height: 25px;
+    padding: 0;
+    position: relative;
+}
+
+#spreadsheet th {
+    background-color: #f0f0f0;
+    font-weight: normal;
+    text-align: center;
+    user-select: none;
+    font-size: 13px;
+    color: #666;
+}
+
+#spreadsheet th.row-header {
+    width: 40px;
+    min-width: 40px;
+    background-color: #f0f0f0;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+#spreadsheet thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+#spreadsheet thead th.row-header {
+    z-index: 3;
+}
+
+#spreadsheet td {
+    background-color: white;
+    padding: 0;
+}
+
+#spreadsheet td input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    padding: 2px 4px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    outline: none;
+}
+
+#spreadsheet td.selected {
+    outline: 2px solid #0066cc;
+    outline-offset: -1px;
+}
+
+#spreadsheet td.editing input {
+    outline: 2px solid #0066cc;
+    outline-offset: -2px;
+}
+
+#spreadsheet td.formula {
+    color: #0066cc;
+}
+
+#spreadsheet td.error {
+    color: #cc0000;
+    background-color: #ffeeee;
+}
