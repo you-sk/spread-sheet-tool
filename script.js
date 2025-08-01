@@ -239,6 +239,24 @@ class Spreadsheet {
             }
         });
 
+        // Ctrl+C でコピー、Ctrl+V で貼り付け
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'c') {
+                if (this.selectionStart && this.selectionEnd) {
+                    e.preventDefault();
+                    this.copyRangeToClipboard();
+                } else if (this.selectedCell) {
+                    // 単一セルの場合は通常のコピーを許可
+                    return;
+                }
+            } else if (e.ctrlKey && e.key === 'v') {
+                if (this.selectedCell) {
+                    e.preventDefault();
+                    this.pasteFromClipboard();
+                }
+            }
+        });
+
         // フォーミュラバーの入力
         formulaInput.addEventListener('input', (e) => {
             if (this.selectedCell) {
@@ -583,6 +601,133 @@ class Spreadsheet {
 
     escapeMarkdown(text) {
         return text.replace(/[|\\]/g, '\\$&');
+    }
+
+    copyRangeToClipboard() {
+        const data = this.getSelectedData();
+        if (data.length === 0) return;
+        
+        // タブ区切り形式に変換（Excelで貼り付け可能）
+        const tsvText = data.map(row => row.join('\t')).join('\n');
+        
+        // クリップボードにコピー
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(tsvText).then(() => {
+                // 視覚的フィードバック
+                this.showCopyFeedback();
+            }).catch(err => {
+                console.error('クリップボードへのコピーに失敗しました:', err);
+            });
+        } else {
+            // フォールバック: 古いブラウザ用
+            const textarea = document.createElement('textarea');
+            textarea.value = tsvText;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            this.showCopyFeedback();
+        }
+    }
+
+    showCopyFeedback() {
+        // コピー完了の視覚的フィードバック
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.textContent = 'コピーしました';
+        feedbackDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(feedbackDiv);
+        
+        setTimeout(() => {
+            document.body.removeChild(feedbackDiv);
+        }, 1000);
+    }
+
+    pasteFromClipboard() {
+        if (!this.selectedCell) return;
+        
+        const startRow = parseInt(this.selectedCell.dataset.row);
+        const startCol = parseInt(this.selectedCell.dataset.col);
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.readText().then(text => {
+                this.pasteData(text, startRow, startCol);
+            }).catch(err => {
+                console.error('クリップボードからの読み取りに失敗しました:', err);
+            });
+        } else {
+            // フォールバック: プロンプトを使用
+            const text = prompt('貼り付けるデータを入力してください:');
+            if (text) {
+                this.pasteData(text, startRow, startCol);
+            }
+        }
+    }
+
+    pasteData(text, startRow, startCol) {
+        // タブ区切りデータを解析
+        const lines = text.trim().split('\n');
+        const data = lines.map(line => line.split('\t'));
+        
+        // 貼り付け
+        for (let i = 0; i < data.length; i++) {
+            const row = startRow + i;
+            if (row >= this.rows) break; // 範囲外は無視
+            
+            for (let j = 0; j < data[i].length; j++) {
+                const col = startCol + j;
+                if (col >= this.cols) break; // 範囲外は無視
+                
+                const cellId = `cell-${row}-${col}`;
+                const input = document.getElementById(cellId);
+                if (input) {
+                    input.value = data[i][j];
+                    this.setCellValue(row, col, data[i][j]);
+                    
+                    // 数式の場合は評価
+                    if (data[i][j].startsWith('=')) {
+                        this.evaluateCell(input);
+                    }
+                }
+            }
+        }
+        
+        // 貼り付け完了の視覚的フィードバック
+        this.showPasteFeedback();
+    }
+
+    showPasteFeedback() {
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.textContent = '貼り付けました';
+        feedbackDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(feedbackDiv);
+        
+        setTimeout(() => {
+            document.body.removeChild(feedbackDiv);
+        }, 1000);
     }
 
     copyToClipboard() {
