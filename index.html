@@ -12,6 +12,7 @@
             <button id="saveBtn">保存</button>
             <button id="loadBtn">読み込み</button>
             <button id="clearBtn">クリア</button>
+            <button id="exportBtn">エクスポート</button>
             <input type="file" id="fileInput" accept=".json" style="display: none;">
             <span class="formula-bar">
                 <label>fx:</label>
@@ -27,6 +28,26 @@
             </table>
         </div>
     </div>
+    
+    <!-- エクスポートモーダル -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>テーブルをエクスポート</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>選択範囲: <span id="selectedRange">なし</span></p>
+                <div class="export-options">
+                    <button id="exportHTML">HTMLテーブル</button>
+                    <button id="exportMarkdown">Markdownテーブル</button>
+                </div>
+                <textarea id="exportOutput" readonly placeholder="エクスポート結果がここに表示されます"></textarea>
+                <button id="copyToClipboard">クリップボードにコピー</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="script.js"></script>
 </body>
 </html>

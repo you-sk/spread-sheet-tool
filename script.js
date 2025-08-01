@@ -4,6 +4,10 @@ class Spreadsheet {
         this.cols = 26;
         this.data = {};
         this.selectedCell = null;
+        this.selectionStart = null;
+        this.selectionEnd = null;
+        this.isSelecting = false;
+        this.rangeStartCell = null; // 範囲選択の起点を記録
         this.init();
     }
 
@@ -40,6 +44,8 @@ class Spreadsheet {
             // セルの作成
             for (let col = 0; col < this.cols; col++) {
                 const td = document.createElement('td');
+                td.dataset.row = row;
+                td.dataset.col = col;
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.dataset.row = row;
@@ -89,6 +95,8 @@ class Spreadsheet {
         tbody.addEventListener('click', (e) => {
             if (e.target.tagName === 'INPUT') {
                 this.selectCell(e.target);
+                this.clearRangeSelection();
+                this.rangeStartCell = null;
             }
         });
 
@@ -120,23 +128,62 @@ class Spreadsheet {
                     
                     case 'ArrowUp':
                         e.preventDefault();
-                        if (row > 0) {
-                            nextCell = document.getElementById(`cell-${row - 1}-${col}`);
+                        if (e.shiftKey) {
+                            // Shift+上で範囲選択
+                            if (!this.rangeStartCell) {
+                                this.rangeStartCell = { row, col };
+                            }
+                            if (row > 0) {
+                                this.selectRange(this.rangeStartCell.row, this.rangeStartCell.col, row - 1, col);
+                                nextCell = document.getElementById(`cell-${row - 1}-${col}`);
+                            }
+                        } else {
+                            if (row > 0) {
+                                nextCell = document.getElementById(`cell-${row - 1}-${col}`);
+                            }
+                            this.clearRangeSelection();
+                            this.rangeStartCell = null;
                         }
                         break;
                     
                     case 'ArrowDown':
                         e.preventDefault();
-                        if (row < this.rows - 1) {
-                            nextCell = document.getElementById(`cell-${row + 1}-${col}`);
+                        if (e.shiftKey) {
+                            // Shift+下で範囲選択
+                            if (!this.rangeStartCell) {
+                                this.rangeStartCell = { row, col };
+                            }
+                            if (row < this.rows - 1) {
+                                this.selectRange(this.rangeStartCell.row, this.rangeStartCell.col, row + 1, col);
+                                nextCell = document.getElementById(`cell-${row + 1}-${col}`);
+                            }
+                        } else {
+                            if (row < this.rows - 1) {
+                                nextCell = document.getElementById(`cell-${row + 1}-${col}`);
+                            }
+                            this.clearRangeSelection();
+                            this.rangeStartCell = null;
                         }
                         break;
                     
                     case 'ArrowLeft':
                         if (e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
                             e.preventDefault();
-                            if (col > 0) {
-                                nextCell = document.getElementById(`cell-${row}-${col - 1}`);
+                            if (e.shiftKey) {
+                                // Shift+左で範囲選択
+                                if (!this.rangeStartCell) {
+                                    this.rangeStartCell = { row, col };
+                                }
+                                if (col > 0) {
+                                    this.selectRange(this.rangeStartCell.row, this.rangeStartCell.col, row, col - 1);
+                                    nextCell = document.getElementById(`cell-${row}-${col - 1}`);
+                                }
+                            } else {
+                                if (col > 0) {
+                                    nextCell = document.getElementById(`cell-${row}-${col - 1}`);
+                                }
+                                this.clearRangeSelection();
+                                this.rangeStartCell = null;
                             }
                         }
                         break;
@@ -144,8 +191,21 @@ class Spreadsheet {
                     case 'ArrowRight':
                         if (e.target.selectionStart === e.target.value.length) {
                             e.preventDefault();
-                            if (col < this.cols - 1) {
-                                nextCell = document.getElementById(`cell-${row}-${col + 1}`);
+                            if (e.shiftKey) {
+                                // Shift+右で範囲選択
+                                if (!this.rangeStartCell) {
+                                    this.rangeStartCell = { row, col };
+                                }
+                                if (col < this.cols - 1) {
+                                    this.selectRange(this.rangeStartCell.row, this.rangeStartCell.col, row, col + 1);
+                                    nextCell = document.getElementById(`cell-${row}-${col + 1}`);
+                                }
+                            } else {
+                                if (col < this.cols - 1) {
+                                    nextCell = document.getElementById(`cell-${row}-${col + 1}`);
+                                }
+                                this.clearRangeSelection();
+                                this.rangeStartCell = null;
                             }
                         }
                         break;
@@ -167,6 +227,8 @@ class Spreadsheet {
                                 nextCell = document.getElementById(`cell-${row + 1}-0`);
                             }
                         }
+                        this.clearRangeSelection();
+                        this.rangeStartCell = null;
                         break;
                 }
 
@@ -198,7 +260,22 @@ class Spreadsheet {
         document.getElementById('saveBtn').addEventListener('click', () => this.saveData());
         document.getElementById('loadBtn').addEventListener('click', () => this.loadData());
         document.getElementById('clearBtn').addEventListener('click', () => this.clearData());
+        document.getElementById('exportBtn').addEventListener('click', () => this.showExportModal());
         document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileSelect(e));
+
+        // モーダル関連のイベント
+        const modal = document.getElementById('exportModal');
+        const closeBtn = document.querySelector('.close');
+        closeBtn.addEventListener('click', () => this.hideExportModal());
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideExportModal();
+            }
+        });
+
+        document.getElementById('exportHTML').addEventListener('click', () => this.exportAsHTML());
+        document.getElementById('exportMarkdown').addEventListener('click', () => this.exportAsMarkdown());
+        document.getElementById('copyToClipboard').addEventListener('click', () => this.copyToClipboard());
     }
 
     selectCell(input) {
@@ -365,6 +442,160 @@ class Spreadsheet {
                 }
             }
         }
+    }
+
+    selectRange(startRow, startCol, endRow, endCol) {
+        this.clearRangeSelection();
+        
+        const minRow = Math.min(startRow, endRow);
+        const maxRow = Math.max(startRow, endRow);
+        const minCol = Math.min(startCol, endCol);
+        const maxCol = Math.max(startCol, endCol);
+        
+        this.selectionStart = { row: minRow, col: minCol };
+        this.selectionEnd = { row: maxRow, col: maxCol };
+        
+        for (let row = minRow; row <= maxRow; row++) {
+            for (let col = minCol; col <= maxCol; col++) {
+                const cell = document.getElementById(`cell-${row}-${col}`);
+                if (cell) {
+                    cell.parentElement.classList.add('range-selected');
+                }
+            }
+        }
+    }
+
+    clearRangeSelection() {
+        document.querySelectorAll('.range-selected').forEach(td => {
+            td.classList.remove('range-selected');
+        });
+        this.selectionStart = null;
+        this.selectionEnd = null;
+    }
+
+    showExportModal() {
+        const modal = document.getElementById('exportModal');
+        const rangeSpan = document.getElementById('selectedRange');
+        
+        if (this.selectionStart && this.selectionEnd) {
+            const startCell = this.getCellId(this.selectionStart.row, this.selectionStart.col);
+            const endCell = this.getCellId(this.selectionEnd.row, this.selectionEnd.col);
+            rangeSpan.textContent = `${startCell}:${endCell}`;
+        } else if (this.selectedCell) {
+            const row = parseInt(this.selectedCell.dataset.row);
+            const col = parseInt(this.selectedCell.dataset.col);
+            rangeSpan.textContent = this.getCellId(row, col);
+        } else {
+            rangeSpan.textContent = 'なし';
+        }
+        
+        modal.style.display = 'block';
+        document.getElementById('exportOutput').value = '';
+    }
+
+    hideExportModal() {
+        document.getElementById('exportModal').style.display = 'none';
+    }
+
+    getSelectedData() {
+        const data = [];
+        let startRow, endRow, startCol, endCol;
+        
+        if (this.selectionStart && this.selectionEnd) {
+            startRow = this.selectionStart.row;
+            endRow = this.selectionEnd.row;
+            startCol = this.selectionStart.col;
+            endCol = this.selectionEnd.col;
+        } else if (this.selectedCell) {
+            startRow = endRow = parseInt(this.selectedCell.dataset.row);
+            startCol = endCol = parseInt(this.selectedCell.dataset.col);
+        } else {
+            return data;
+        }
+        
+        for (let row = startRow; row <= endRow; row++) {
+            const rowData = [];
+            for (let col = startCol; col <= endCol; col++) {
+                const cellData = this.data[`${row}-${col}`];
+                const value = cellData ? cellData.value : '';
+                rowData.push(value);
+            }
+            data.push(rowData);
+        }
+        
+        return data;
+    }
+
+    exportAsHTML() {
+        const data = this.getSelectedData();
+        if (data.length === 0) {
+            document.getElementById('exportOutput').value = 'データが選択されていません';
+            return;
+        }
+        
+        let html = '<table>\n';
+        data.forEach(row => {
+            html += '  <tr>\n';
+            row.forEach(cell => {
+                html += `    <td>${this.escapeHtml(cell)}</td>\n`;
+            });
+            html += '  </tr>\n';
+        });
+        html += '</table>';
+        
+        document.getElementById('exportOutput').value = html;
+    }
+
+    exportAsMarkdown() {
+        const data = this.getSelectedData();
+        if (data.length === 0) {
+            document.getElementById('exportOutput').value = 'データが選択されていません';
+            return;
+        }
+        
+        let markdown = '';
+        
+        // ヘッダー行
+        markdown += '| ' + data[0].map(cell => this.escapeMarkdown(cell)).join(' | ') + ' |\n';
+        
+        // 区切り行
+        markdown += '|' + data[0].map(() => ' --- ').join('|') + '|\n';
+        
+        // データ行
+        for (let i = 1; i < data.length; i++) {
+            markdown += '| ' + data[i].map(cell => this.escapeMarkdown(cell)).join(' | ') + ' |\n';
+        }
+        
+        // 1行だけの場合は区切り行を追加
+        if (data.length === 1) {
+            markdown = '| ' + data[0].map(cell => this.escapeMarkdown(cell)).join(' | ') + ' |\n';
+            markdown += '|' + data[0].map(() => ' --- ').join('|') + '|\n';
+        }
+        
+        document.getElementById('exportOutput').value = markdown;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    escapeMarkdown(text) {
+        return text.replace(/[|\\]/g, '\\$&');
+    }
+
+    copyToClipboard() {
+        const output = document.getElementById('exportOutput');
+        output.select();
+        document.execCommand('copy');
+        
+        const button = document.getElementById('copyToClipboard');
+        const originalText = button.textContent;
+        button.textContent = 'コピーしました！';
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 2000);
     }
 }
 
